@@ -9,6 +9,6 @@ router.get("/users", protectRoute, getUsersForSidebar);
 router.post("/send/:receiverId", protectRoute, sendMessage);
 
 // Messages route
-router.get("/conversation/:userId", protectRoute, getMessages);
+router.get("/:userId", protectRoute, getMessages);
 
 export default router;
