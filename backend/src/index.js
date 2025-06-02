@@ -61,21 +61,16 @@ io.on("connection", (socket) => {
 // Make io instance available to routes
 app.set("io", io);
 
-// API Routes
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
-// Serve static files in production
 if (process.env.NODE_ENV === "production") {
   // Serve static files from the React app
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
   // Handle React routing, return all requests to React app
-  app.get("*", (req, res, next) => {
-    // Skip API routes
-    if (req.path.startsWith('/api/')) {
-      return next();
-    }
+  app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
   });
 }
