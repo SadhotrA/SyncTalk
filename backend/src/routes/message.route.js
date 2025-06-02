@@ -8,7 +8,7 @@ const router = express.Router();
 router.get("/users", protectRoute, getUsersForSidebar);
 router.post("/send/:receiverId", protectRoute, sendMessage);
 
-// Messages route
-router.get("/:userId", protectRoute, getMessages);
+// Messages route with a more specific prefix
+router.get("/conversation/:userId", protectRoute, getMessages);
 
 export default router;

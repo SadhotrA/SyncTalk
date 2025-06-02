@@ -68,10 +68,10 @@ if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
   // Handle React routing, return all requests to React app
-  app.get("*", (req, res, next) => {
+  app.get("/*", (req, res) => {
     // Skip API routes
     if (req.path.startsWith('/api/')) {
-      return next();
+      return res.status(404).json({ message: "API route not found" });
     }
     // Send the React app for all other routes
     res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
