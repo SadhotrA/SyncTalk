@@ -6,9 +6,9 @@ const router = express.Router();
 
 // More specific routes first
 router.get("/users", protectRoute, getUsersForSidebar);
-router.post("/send/:id", protectRoute, sendMessage);
+router.post("/send/:receiverId", protectRoute, sendMessage);
 
 // Generic routes last
-router.get("/:id", protectRoute, getMessages);
+router.get("/:userId", protectRoute, getMessages);
 
 export default router;
