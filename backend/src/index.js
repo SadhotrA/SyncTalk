@@ -25,6 +25,9 @@ if (missingEnvVars.length > 0) {
 const PORT = process.env.PORT;
 const __dirname = path.resolve();
 
+// Trust proxy for rate limiter
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet());
 app.use(express.json({ limit: '10mb' }));
@@ -35,8 +38,13 @@ app.use(cookieParser());
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.'
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  trustProxy: true
 });
+
+// Apply rate limiting to API routes
 app.use('/api/', limiter);
 
 // CORS configuration
