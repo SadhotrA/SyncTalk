@@ -14,6 +14,7 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  isSendingMessage: false,
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -63,22 +64,34 @@ export const useChatStore = create((set, get) => ({
 
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
+    
     if (!selectedUser?._id) {
       toast.error("No user selected");
       return;
     }
 
+    if (!messageData.text && !messageData.image) {
+      toast.error("Message content is required");
+      return;
+    }
+
+    set({ isSendingMessage: true });
     let retries = 0;
+    
     while (retries < MAX_RETRIES) {
       try {
         const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-        set({ messages: [...messages, res.data] });
+        set({ 
+          messages: [...messages, res.data],
+          isSendingMessage: false 
+        });
         break;
       } catch (error) {
         console.error("Error sending message:", error);
         retries++;
         if (retries === MAX_RETRIES) {
           toast.error(error.response?.data?.message || "Failed to send message");
+          set({ isSendingMessage: false });
         } else {
           await sleep(RETRY_DELAY);
         }

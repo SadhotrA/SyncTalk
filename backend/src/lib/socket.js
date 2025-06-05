@@ -11,6 +11,9 @@ const io = new Server(server, {
     credentials: true,
     methods: ["GET", "POST"]
   },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectTimeout: 10000,
 });
 
 export function getReceiverSocketId(userId) {
@@ -20,20 +23,59 @@ export function getReceiverSocketId(userId) {
 // used to store online users
 const userSocketMap = {}; // {userId: socketId}
 
+// Cleanup function to remove stale connections
+const cleanupStaleConnections = () => {
+  const now = Date.now();
+  Object.entries(userSocketMap).forEach(([userId, socketId]) => {
+    const socket = io.sockets.sockets.get(socketId);
+    if (!socket || !socket.connected) {
+      delete userSocketMap[userId];
+    }
+  });
+  io.emit("getOnlineUsers", Object.keys(userSocketMap));
+};
+
+// Run cleanup every 5 minutes
+setInterval(cleanupStaleConnections, 5 * 60 * 1000);
+
 io.on("connection", (socket) => {
   console.log("A user connected", socket.id);
 
   const userId = socket.handshake.query.userId;
-  if (userId) userSocketMap[userId] = socket.id;
+  if (!userId) {
+    console.warn("Connection attempt without userId");
+    socket.disconnect();
+    return;
+  }
 
-  // io.emit() is used to send events to all the connected clients
+  // Handle reconnection
+  if (userSocketMap[userId]) {
+    console.log(`User ${userId} reconnected`);
+    const oldSocketId = userSocketMap[userId];
+    const oldSocket = io.sockets.sockets.get(oldSocketId);
+    if (oldSocket) {
+      oldSocket.disconnect();
+    }
+  }
+
+  userSocketMap[userId] = socket.id;
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  socket.on("disconnect", () => {
-    console.log("A user disconnected", socket.id);
+  // Handle errors
+  socket.on("error", (error) => {
+    console.error("Socket error:", error);
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.log(`User ${userId} disconnected. Reason: ${reason}`);
     delete userSocketMap[userId];
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
+});
+
+// Handle server errors
+server.on("error", (error) => {
+  console.error("Server error:", error);
 });
 
 export { io, app, server };

@@ -45,6 +45,7 @@ export const sendMessage = async (req, res) => {
     const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
+    // Input validation
     if (!receiverId) {
       return res.status(400).json({ error: "Receiver ID is required" });
     }
@@ -53,26 +54,29 @@ export const sendMessage = async (req, res) => {
       return res.status(400).json({ error: "Message content is required" });
     }
 
-    // Verify receiver exists
+    // Validate receiver exists
     const receiver = await User.findById(receiverId);
     if (!receiver) {
       return res.status(404).json({ error: "Receiver not found" });
     }
 
+    // Handle image upload if present
     let imageUrl;
     if (image) {
       try {
         const uploadResponse = await cloudinary.uploader.upload(image, {
           folder: "chat_images",
-          resource_type: "auto"
+          resource_type: "auto",
+          max_size: 5242880 // 5MB limit
         });
         imageUrl = uploadResponse.secure_url;
       } catch (uploadError) {
         console.error("Error uploading image:", uploadError);
-        return res.status(500).json({ error: "Failed to upload image" });
+        return res.status(400).json({ error: "Failed to upload image" });
       }
     }
 
+    // Create and save message
     const newMessage = new Message({
       senderId,
       receiverId,
@@ -80,16 +84,21 @@ export const sendMessage = async (req, res) => {
       image: imageUrl || "",
     });
 
-    await newMessage.save();
+    const savedMessage = await newMessage.save();
 
+    // Emit socket event
     const receiverSocketId = getReceiverSocketId(receiverId);
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("newMessage", newMessage);
+      io.to(receiverSocketId).emit("newMessage", savedMessage);
     }
 
-    res.status(201).json(newMessage);
+    // Return the saved message
+    res.status(201).json(savedMessage);
   } catch (error) {
     console.error("Error in sendMessage controller: ", error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ error: error.message });
+    }
     res.status(500).json({ error: "Internal server error" });
   }
 };
