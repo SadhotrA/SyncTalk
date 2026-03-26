@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import fs from "fs";
 import path from "path";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -103,7 +104,6 @@ console.log("Frontend dist path:", frontendDistPath);
 console.log("Current working directory:", process.cwd());
 
 // Check if path exists, if not try alternative
-const fs = require('fs');
 if (!fs.existsSync(frontendDistPath)) {
   console.log("Path doesn't exist, trying alternative...");
   // Try alternative path for Render
