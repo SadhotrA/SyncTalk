@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../store/useAuthStore";
-import { LogOut, MessageSquare, Settings, User } from "lucide-react";
+import { useFriendStore } from "../store/useFriendStore";
+import { LogOut, MessageSquare, Settings, User, Users, UserPlus } from "lucide-react";
 
 const Navbar = () => {
   const { logout, authUser } = useAuthStore();
+  const { friendRequests, fetchFriendRequests } = useFriendStore();
 
   return (
     <header
@@ -22,12 +24,23 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {authUser && (
+              <Link
+                to={"/friends"}
+                className="btn btn-sm gap-2"
+                onClick={() => fetchFriendRequests()}
+              >
+                <Users className="size-4" />
+                <span className="hidden sm:inline">Friends</span>
+                {friendRequests.length > 0 && (
+                  <span className="badge badge-primary badge-xs">{friendRequests.length}</span>
+                )}
+              </Link>
+            )}
+
             <Link
               to={"/settings"}
-              className={`
-              btn btn-sm gap-2 transition-colors
-              
-              `}
+              className="btn btn-sm gap-2"
             >
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Settings</span>
@@ -35,7 +48,7 @@ const Navbar = () => {
 
             {authUser && (
               <>
-                <Link to={"/profile"} className={`btn btn-sm gap-2`}>
+                <Link to={"/profile"} className="btn btn-sm gap-2">
                   <User className="size-5" />
                   <span className="hidden sm:inline">Profile</span>
                 </Link>

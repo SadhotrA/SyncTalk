@@ -5,9 +5,34 @@ import express from "express";
 const app = express();
 const server = http.createServer(app);
 
+const getAllowedOrigins = () => {
+  const origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000"
+  ];
+  if (process.env.FRONTEND_URL) {
+    origins.push(process.env.FRONTEND_URL);
+  }
+  return origins;
+};
+
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: function(origin, callback) {
+      const allowedOrigins = getAllowedOrigins();
+      
+      if (!origin) {
+        return callback(null, true);
+      }
+      
+      if (allowedOrigins.includes(origin) || origin.match(/^http:\/\/192\.168\.\d+\.\d+:\d+$/)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ["GET", "POST"]
   },
@@ -20,10 +45,8 @@ export function getReceiverSocketId(userId) {
   return userSocketMap[userId];
 }
 
-// used to store online users
-const userSocketMap = {}; // {userId: socketId}
+const userSocketMap = {};
 
-// Cleanup function to remove stale connections
 const cleanupStaleConnections = () => {
   const now = Date.now();
   Object.entries(userSocketMap).forEach(([userId, socketId]) => {
@@ -35,7 +58,6 @@ const cleanupStaleConnections = () => {
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 };
 
-// Run cleanup every 5 minutes
 setInterval(cleanupStaleConnections, 5 * 60 * 1000);
 
 io.on("connection", (socket) => {
@@ -48,7 +70,6 @@ io.on("connection", (socket) => {
     return;
   }
 
-  // Handle reconnection
   if (userSocketMap[userId]) {
     console.log(`User ${userId} reconnected`);
     const oldSocketId = userSocketMap[userId];
@@ -61,7 +82,75 @@ io.on("connection", (socket) => {
   userSocketMap[userId] = socket.id;
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  // Handle errors
+  socket.on("joinConversation", (conversationId) => {
+    socket.join(`conversation:${conversationId}`);
+  });
+
+  socket.on("leaveConversation", (conversationId) => {
+    socket.leave(`conversation:${conversationId}`);
+  });
+
+  socket.on("typing", ({ conversationId, userId }) => {
+    socket.to(`conversation:${conversationId}`).emit("userTyping", { conversationId, userId });
+  });
+
+  socket.on("stopTyping", ({ conversationId, userId }) => {
+    socket.to(`conversation:${conversationId}`).emit("userStoppedTyping", { conversationId, userId });
+  });
+
+  socket.on("markSeen", ({ conversationId, userId }) => {
+    socket.to(`conversation:${conversationId}`).emit("messageSeen", { conversationId, userId });
+  });
+
+  socket.on("callUser", ({ from, to, callType }) => {
+    const receiverSocketId = userSocketMap[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("incomingCall", { from, callType });
+    }
+  });
+
+  socket.on("answerCall", ({ from, to, callType }) => {
+    const receiverSocketId = userSocketMap[from];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("callAccepted", { callType });
+    }
+  });
+
+  socket.on("rejectCall", ({ from, to }) => {
+    const receiverSocketId = userSocketMap[from];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("callRejected");
+    }
+  });
+
+  socket.on("endCall", ({ from, to }) => {
+    const receiverSocketId = userSocketMap[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("callEnded");
+    }
+  });
+
+  socket.on("iceCandidate", ({ from, to, candidate }) => {
+    const receiverSocketId = userSocketMap[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("iceCandidate", { from, candidate });
+    }
+  });
+
+  socket.on("offer", ({ from, to, offer }) => {
+    const receiverSocketId = userSocketMap[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("offer", { from, offer });
+    }
+  });
+
+  socket.on("answer", ({ from, to, answer }) => {
+    const receiverSocketId = userSocketMap[to];
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("answer", { from, answer });
+    }
+  });
+
   socket.on("error", (error) => {
     console.error("Socket error:", error);
   });
@@ -73,7 +162,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// Handle server errors
 server.on("error", (error) => {
   console.error("Server error:", error);
 });

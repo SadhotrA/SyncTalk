@@ -1,11 +1,19 @@
-import { useChatStore } from "../store/useChatStore";
+import { useEffect, useState } from "react";
+import { useConversationStore } from "../store/useConversationStore";
+import { useAuthStore } from "../store/useAuthStore";
 
 import Sidebar from "../components/Sidebar";
 import NoChatSelected from "../components/NoChatSelected";
 import ChatContainer from "../components/ChatContainer";
 
 const HomePage = () => {
-  const { selectedUser } = useChatStore();
+  const { currentConversation, fetchConversations, subscribeToMessages, unsubscribeFromMessages } = useConversationStore();
+
+  useEffect(() => {
+    fetchConversations();
+    subscribeToMessages();
+    return () => unsubscribeFromMessages();
+  }, []);
 
   return (
     <div className="h-screen bg-base-200">
@@ -14,7 +22,7 @@ const HomePage = () => {
           <div className="flex h-full rounded-lg overflow-hidden">
             <Sidebar />
 
-            {!selectedUser ? <NoChatSelected /> : <ChatContainer />}
+            {!currentConversation ? <NoChatSelected /> : <ChatContainer />}
           </div>
         </div>
       </div>

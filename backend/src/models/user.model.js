@@ -20,6 +20,46 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    friends: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }],
+    blockedUsers: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }],
+    privacySettings: {
+      lastSeenVisibility: {
+        type: String,
+        enum: ['everyone', 'friends', 'none'],
+        default: 'friends'
+      },
+      profileVisibility: {
+        type: String,
+        enum: ['everyone', 'friends', 'none'],
+        default: 'friends'
+      },
+      readReceipts: {
+        type: Boolean,
+        default: true
+      },
+      typingIndicators: {
+        type: Boolean,
+        default: true
+      }
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false
+    },
+    twoFactorSecret: {
+      type: String,
+      default: null
+    },
+    lastSeen: {
+      type: Date,
+      default: Date.now
+    }
   },
   { timestamps: true }
 );
