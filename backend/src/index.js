@@ -93,15 +93,23 @@ app.get('/health', (req, res) => {
 
 // Serve frontend static files - works on both local and Render
 let frontendDistPath;
-if (process.env.RENDER) {
-  frontendDistPath = path.join(process.cwd(), "frontend/dist");
-} else if (process.env.NODE_ENV === "production" || process.cwd().includes("backend")) {
+if (process.env.RENDER || process.env.NODE_ENV === "production") {
   frontendDistPath = path.join(process.cwd(), "frontend/dist");
 } else {
   frontendDistPath = path.join(__dirname, "../frontend/dist");
 }
+
 console.log("Frontend dist path:", frontendDistPath);
 console.log("Current working directory:", process.cwd());
+
+// Check if path exists, if not try alternative
+const fs = require('fs');
+if (!fs.existsSync(frontendDistPath)) {
+  console.log("Path doesn't exist, trying alternative...");
+  // Try alternative path for Render
+  frontendDistPath = path.join(__dirname, "../../frontend/dist");
+  console.log("Alternative path:", frontendDistPath);
+}
 
 // Serve static files with proper headers
 app.use(express.static(frontendDistPath, {
@@ -109,11 +117,9 @@ app.use(express.static(frontendDistPath, {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.css')) {
       res.setHeader('Content-Type', 'text/css');
-      res.setHeader('Cache-Control', 'public, max-age=31536000');
     }
     if (filePath.endsWith('.js')) {
       res.setHeader('Content-Type', 'application/javascript');
-      res.setHeader('Cache-Control', 'public, max-age=31536000');
     }
   }
 }));
