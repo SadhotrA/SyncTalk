@@ -90,10 +90,55 @@ app.get('/health', (req, res) => {
 });
 
 // Serve frontend static files
-app.use(express.static(path.join(__dirname, "../frontend/dist")));
+const frontendDistPath = path.join(__dirname, "../frontend/dist");
+console.log("Frontend dist path:", frontendDistPath);
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+// Serve static files with proper headers
+app.use(express.static(frontendDistPath, {
+  index: ['index.html'],
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+    }
+    if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript');
+      res.setHeader('Cache-Control', 'public, max-age=31536000');
+    }
+  }
+}));
+
+// Explicitly handle assets to ensure correct MIME types
+app.get('/assets/:filename', (req, res) => {
+  const filename = req.params.filename;
+  const filePath = path.join(frontendDistPath, 'assets', filename);
+  
+  if (filename.endsWith('.css')) {
+    res.setHeader('Content-Type', 'text/css');
+  } else if (filename.endsWith('.js')) {
+    res.setHeader('Content-Type', 'application/javascript');
+  }
+  
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error("Asset error:", err);
+      res.status(404).send("Not found");
+    }
+  });
+});
+
+// Serve index.html for all non-API routes (SPA fallback)
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+  const indexPath = path.join(frontendDistPath, "index.html");
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error("Error sending index.html:", err);
+      next(err);
+    }
+  });
 });
 
 // Error handling middleware
