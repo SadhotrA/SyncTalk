@@ -57,15 +57,17 @@ const corsOptions = {
       "http://localhost:5173",
       "http://localhost:3000",
       "http://127.0.0.1:5173",
-      "http://127.0.0.1:3000"
+      "http://127.0.0.1:3000",
+      "https://synctalk-fnua.onrender.com",
+      /\.onrender\.com$/
     ];
     
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin) {
+    // Allow requests with no origin (like mobile apps or curl) or in production
+    if (!origin || process.env.NODE_ENV === "production") {
       return callback(null, true);
     }
     
-    if (allowedOrigins.includes(origin) || origin.match(/^http:\/\/192\.168\.\d+\.\d+:\d+$/)) {
+    if (allowedOrigins.includes(origin) || origin.match(/^http:\/\/192\.168\.\d+\.\d+:\d+$/) || origin.match(/\.onrender\.com$/)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -89,9 +91,17 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
 
-// Serve frontend static files
-const frontendDistPath = path.join(__dirname, "../frontend/dist");
+// Serve frontend static files - works on both local and Render
+let frontendDistPath;
+if (process.env.RENDER) {
+  frontendDistPath = path.join(process.cwd(), "frontend/dist");
+} else if (process.env.NODE_ENV === "production" || process.cwd().includes("backend")) {
+  frontendDistPath = path.join(process.cwd(), "frontend/dist");
+} else {
+  frontendDistPath = path.join(__dirname, "../frontend/dist");
+}
 console.log("Frontend dist path:", frontendDistPath);
+console.log("Current working directory:", process.cwd());
 
 // Serve static files with proper headers
 app.use(express.static(frontendDistPath, {
