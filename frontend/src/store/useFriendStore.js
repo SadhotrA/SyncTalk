@@ -10,15 +10,21 @@ export const useFriendStore = create((set, get) => ({
   isLoading: false,
   isSearching: false,
 
-  searchUsers: async (query) => {
+  searchUsers: async (query, page = 1) => {
     if (!query || query.length < 2) {
       set({ searchResults: [] });
       return;
     }
-    set({ isSearching: true });
+    set({ isSearching: page === 1 });
     try {
-      const res = await axiosInstance.get(`/friends/search?query=${query}`);
-      set({ searchResults: res.data });
+      const res = await axiosInstance.get(`/friends/search?query=${query}&page=${page}&limit=20`);
+      const { searchResults } = get();
+      set({
+        searchResults: page === 1
+          ? res.data.users
+          : [...searchResults, ...res.data.users],
+        hasMoreSearchResults: res.data.hasMore,
+      });
     } catch (error) {
       console.error("Error searching users:", error);
       toast.error(error.response?.data?.message || "Failed to search users");
@@ -82,7 +88,7 @@ export const useFriendStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const res = await axiosInstance.get("/friends/requests");
-      set({ friendRequests: res.data });
+      set({ friendRequests: res.data.requests });
     } catch (error) {
       console.error("Error fetching friend requests:", error);
     } finally {
@@ -94,7 +100,7 @@ export const useFriendStore = create((set, get) => ({
     set({ isLoading: true });
     try {
       const res = await axiosInstance.get("/friends");
-      set({ friends: res.data });
+      set({ friends: res.data.friends });
     } catch (error) {
       console.error("Error fetching friends:", error);
     } finally {

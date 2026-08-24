@@ -6,10 +6,21 @@ export const searchUsers = async (req, res) => {
   try {
     const { query } = req.query;
     const currentUserId = req.user._id;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
 
     if (!query || query.length < 2) {
       return res.status(400).json({ message: "Search query must be at least 2 characters" });
     }
+
+    const total = await User.countDocuments({
+      _id: { $ne: currentUserId },
+      $or: [
+        { fullName: { $regex: query, $options: 'i' } },
+        { email: { $regex: query, $options: 'i' } }
+      ]
+    });
 
     const users = await User.find({
       _id: { $ne: currentUserId },
@@ -17,7 +28,7 @@ export const searchUsers = async (req, res) => {
         { fullName: { $regex: query, $options: 'i' } },
         { email: { $regex: query, $options: 'i' } }
       ]
-    }).select("-password");
+    }).select("-password").skip(skip).limit(limit);
 
     const usersWithStatus = await Promise.all(users.map(async (user) => {
       const currentUser = await User.findById(currentUserId);
@@ -40,7 +51,12 @@ export const searchUsers = async (req, res) => {
       };
     }));
 
-    res.status(200).json(usersWithStatus);
+    res.status(200).json({
+      users: usersWithStatus,
+      hasMore: skip + users.length < total,
+      total,
+      page,
+    });
   } catch (error) {
     console.error("Error in searchUsers: ", error);
     res.status(500).json({ message: "Internal server error" });
@@ -175,13 +191,26 @@ export const rejectFriendRequest = async (req, res) => {
 export const getFriendRequests = async (req, res) => {
   try {
     const userId = req.user._id;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+
+    const total = await FriendRequest.countDocuments({
+      receiver: userId,
+      status: 'pending'
+    });
 
     const requests = await FriendRequest.find({
       receiver: userId,
       status: 'pending'
-    }).populate('sender', 'fullName email profilePic').sort({ createdAt: -1 });
+    }).populate('sender', 'fullName email profilePic').sort({ createdAt: -1 }).skip(skip).limit(limit);
 
-    res.status(200).json(requests);
+    res.status(200).json({
+      requests,
+      hasMore: skip + requests.length < total,
+      total,
+      page,
+    });
   } catch (error) {
     console.error("Error in getFriendRequests: ", error);
     res.status(500).json({ message: "Internal server error" });
@@ -191,9 +220,23 @@ export const getFriendRequests = async (req, res) => {
 export const getFriends = async (req, res) => {
   try {
     const userId = req.user._id;
-    const user = await User.findById(userId).populate('friends', 'fullName email profilePic lastSeen');
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const skip = (page - 1) * limit;
 
-    res.status(200).json(user.friends);
+    const user = await User.findById(userId);
+    const total = user.friends.length;
+
+    const friends = await User.find({
+      _id: { $in: user.friends }
+    }).populate('fullName email profilePic lastSeen').skip(skip).limit(limit);
+
+    res.status(200).json({
+      friends,
+      hasMore: skip + friends.length < total,
+      total,
+      page,
+    });
   } catch (error) {
     console.error("Error in getFriends: ", error);
     res.status(500).json({ message: "Internal server error" });

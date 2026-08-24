@@ -11,12 +11,20 @@ export const useConversationStore = create((set, get) => ({
   isLoadingMessages: false,
   isSending: false,
   typingUsers: [],
+  hasMoreMessages: false,
+  messagesPage: 1,
 
-  fetchConversations: async () => {
-    set({ isLoading: true });
+  fetchConversations: async (page = 1) => {
+    set({ isLoading: page === 1 });
     try {
-      const res = await axiosInstance.get("/messages/conversations");
-      set({ conversations: res.data });
+      const res = await axiosInstance.get(`/messages/conversations?page=${page}&limit=20`);
+      const { conversations } = get();
+      set({
+        conversations: page === 1
+          ? res.data.conversations
+          : [...conversations, ...res.data.conversations],
+        hasMoreConversations: res.data.hasMore,
+      });
     } catch (error) {
       console.error("Error fetching conversations:", error);
     } finally {
@@ -39,20 +47,33 @@ export const useConversationStore = create((set, get) => ({
     }
   },
 
-  setCurrentConversation: (conversation) => set({ currentConversation: conversation }),
+  setCurrentConversation: (conversation) => set({ currentConversation: conversation, messages: [], messagesPage: 1, hasMoreMessages: false }),
 
-  fetchMessages: async (conversationId) => {
+  fetchMessages: async (conversationId, page = 1) => {
     if (!conversationId) return;
-    set({ isLoadingMessages: true });
+    set({ isLoadingMessages: page === 1 });
     try {
-      const res = await axiosInstance.get(`/messages/${conversationId}`);
-      set({ messages: res.data });
+      const res = await axiosInstance.get(`/messages/${conversationId}?page=${page}&limit=50`);
+      const { messages } = get();
+      set({
+        messages: page === 1
+          ? res.data.messages
+          : [...res.data.messages, ...messages],
+        hasMoreMessages: res.data.hasMore,
+        messagesPage: page,
+      });
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast.error(error.response?.data?.message || "Failed to fetch messages");
     } finally {
       set({ isLoadingMessages: false });
     }
+  },
+
+  loadMoreMessages: async () => {
+    const { currentConversation, messagesPage, hasMoreMessages } = get();
+    if (!hasMoreMessages || !currentConversation?._id) return;
+    await get().fetchMessages(currentConversation._id, messagesPage + 1);
   },
 
   sendMessage: async (messageData) => {
@@ -128,7 +149,7 @@ export const useConversationStore = create((set, get) => ({
   searchMessages: async (conversationId, query) => {
     try {
       const res = await axiosInstance.get(`/messages/search/${conversationId}?query=${query}`);
-      return res.data;
+      return res.data.messages;
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to search messages");
       return [];
@@ -138,7 +159,7 @@ export const useConversationStore = create((set, get) => ({
   getMedia: async (conversationId) => {
     try {
       const res = await axiosInstance.get(`/messages/media/${conversationId}`);
-      return res.data;
+      return res.data.media;
     } catch (error) {
       console.error("Error fetching media:", error);
       return [];

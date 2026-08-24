@@ -18,7 +18,9 @@ const ChatContainer = () => {
     currentConversation,
     messages,
     fetchMessages,
+    loadMoreMessages,
     isLoadingMessages,
+    hasMoreMessages,
     addReaction,
     editMessage,
     deleteMessage,
@@ -157,6 +159,17 @@ const ChatContainer = () => {
       />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {hasMoreMessages && (
+          <div className="text-center">
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={loadMoreMessages}
+              disabled={isLoadingMessages}
+            >
+              {isLoadingMessages ? "Loading..." : "Load older messages"}
+            </button>
+          </div>
+        )}
         {messages.map((message) => {
           const isMe = message.senderId?._id === authUser._id;
           const senderName = message.senderId?.fullName;

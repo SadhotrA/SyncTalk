@@ -7,11 +7,18 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 export const getConversationsForSidebar = async (req, res) => {
   try {
     const userId = req.user._id;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
     
     const conversations = await Conversation.find({
       participants: userId
     }).populate('participants', 'fullName email profilePic lastSeen')
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Conversation.countDocuments({ participants: userId });
 
     const conversationData = await Promise.all(conversations.map(async (conv) => {
       let otherParticipant = null;
@@ -49,7 +56,12 @@ export const getConversationsForSidebar = async (req, res) => {
       };
     }));
 
-    res.status(200).json(conversationData);
+    res.status(200).json({
+      conversations: conversationData,
+      hasMore: skip + conversations.length < total,
+      total,
+      page,
+    });
   } catch (error) {
     console.error("Error in getConversationsForSidebar: ", error);
     res.status(500).json({ error: "Internal server error" });
@@ -100,6 +112,9 @@ export const getMessages = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user._id;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const skip = (page - 1) * limit;
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
@@ -110,13 +125,20 @@ export const getMessages = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
+    const total = await Message.countDocuments({
+      conversationId,
+      deletedFor: { $ne: userId }
+    });
+
     const messages = await Message.find({
       conversationId,
       deletedFor: { $ne: userId }
     })
     .populate('senderId', 'fullName email profilePic')
     .populate('replyTo')
-    .sort({ createdAt: 1 });
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
 
     await Message.updateMany(
       { 
@@ -150,7 +172,12 @@ export const getMessages = async (req, res) => {
       });
     }
 
-    res.status(200).json(messages);
+    res.status(200).json({
+      messages: messages.reverse(),
+      hasMore: skip + messages.length < total,
+      total,
+      page,
+    });
   } catch (error) {
     console.error("Error in getMessages controller: ", error);
     res.status(500).json({ error: "Internal server error" });
@@ -442,6 +469,9 @@ export const searchMessages = async (req, res) => {
     const { conversationId } = req.params;
     const { query } = req.query;
     const userId = req.user._id;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
@@ -452,6 +482,12 @@ export const searchMessages = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
+    const total = await Message.countDocuments({
+      conversationId,
+      deletedFor: { $ne: userId },
+      text: { $regex: query, $options: 'i' }
+    });
+
     const messages = await Message.find({
       conversationId,
       deletedFor: { $ne: userId },
@@ -459,9 +495,15 @@ export const searchMessages = async (req, res) => {
     })
     .populate('senderId', 'fullName profilePic')
     .sort({ createdAt: -1 })
-    .limit(50);
+    .skip(skip)
+    .limit(limit);
 
-    res.status(200).json(messages);
+    res.status(200).json({
+      messages,
+      hasMore: skip + messages.length < total,
+      total,
+      page,
+    });
   } catch (error) {
     console.error("Error in searchMessages: ", error);
     res.status(500).json({ message: "Internal server error" });
@@ -472,6 +514,9 @@ export const getMedia = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user._id;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
@@ -482,6 +527,12 @@ export const getMedia = async (req, res) => {
       return res.status(403).json({ message: "Not authorized" });
     }
 
+    const total = await Message.countDocuments({
+      conversationId,
+      deletedFor: { $ne: userId },
+      $or: [{ image: { $exists: true, $ne: "" } }, { file: { $exists: true, $ne: null } }]
+    });
+
     const media = await Message.find({
       conversationId,
       deletedFor: { $ne: userId },
@@ -490,9 +541,15 @@ export const getMedia = async (req, res) => {
     .select('image file createdAt senderId')
     .populate('senderId', 'fullName')
     .sort({ createdAt: -1 })
-    .limit(100);
+    .skip(skip)
+    .limit(limit);
 
-    res.status(200).json(media);
+    res.status(200).json({
+      media,
+      hasMore: skip + media.length < total,
+      total,
+      page,
+    });
   } catch (error) {
     console.error("Error in getMedia: ", error);
     res.status(500).json({ message: "Internal server error" });
