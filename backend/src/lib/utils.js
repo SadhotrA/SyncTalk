@@ -14,3 +14,9 @@ export const generateToken = (userId, res) => {
 
   return token;
 };
+
+export const generateTempToken = (userId) => {
+  return jwt.sign({ userId, purpose: "2fa" }, process.env.JWT_SECRET, {
+    expiresIn: "5m",
+  });
+};

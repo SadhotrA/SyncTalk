@@ -1,5 +1,5 @@
 import express from "express";
-import { checkAuth, login, logout, signup, updateProfile, updatePrivacySettings, setup2FA, verify2FA, disable2FA, changePassword, exportData } from "../controllers/auth.controller.js";
+import { checkAuth, login, logout, signup, updateProfile, updatePrivacySettings, setup2FA, verify2FA, verify2FALogin, disable2FA, changePassword, exportData } from "../controllers/auth.controller.js";
 import { protectRoute } from "../middleware/auth.middleware.js";
 import { signupValidation, loginValidation } from "../middleware/validation.middleware.js";
 
@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.post("/signup", signupValidation, signup);
 router.post("/login", loginValidation, login);
+router.post("/verify-2fa-login", verify2FALogin);
 router.post("/logout", logout);
 
 router.put("/update-profile", protectRoute, updateProfile);

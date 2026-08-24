@@ -13,6 +13,8 @@ export const useAuthStore = create((set, get) => ({
   isCheckingAuth: true,
   onlineUsers: [],
   socket: null,
+  tempToken: null,
+  tempUser: null,
 
   checkAuth: async () => {
     try {
@@ -46,9 +48,18 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoggingIn: true });
     try {
       const res = await axiosInstance.post("/auth/login", data);
+
+      if (res.data.requires2FA) {
+        set({
+          tempToken: res.data.tempToken,
+          tempUser: res.data.user,
+          isLoggingIn: false,
+        });
+        return { requires2FA: true };
+      }
+
       set({ authUser: res.data });
       toast.success("Logged in successfully");
-
       get().connectSocket();
     } catch (error) {
       toast.error(error.response.data.message);
@@ -57,10 +68,36 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  verify2FALogin: async (token) => {
+    const { tempToken } = get();
+    if (!tempToken) {
+      toast.error("No pending 2FA verification");
+      return;
+    }
+
+    try {
+      const res = await axiosInstance.post("/auth/verify-2fa-login", {
+        tempToken,
+        token,
+      });
+
+      set({
+        authUser: res.data,
+        tempToken: null,
+        tempUser: null,
+      });
+      toast.success("Logged in successfully");
+      get().connectSocket();
+    } catch (error) {
+      toast.error(error.response.data.message);
+      throw error;
+    }
+  },
+
   logout: async () => {
     try {
       await axiosInstance.post("/auth/logout");
-      set({ authUser: null });
+      set({ authUser: null, tempToken: null, tempUser: null });
       toast.success("Logged out successfully");
       get().disconnectSocket();
     } catch (error) {

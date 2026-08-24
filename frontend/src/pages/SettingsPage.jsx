@@ -40,9 +40,6 @@ const SettingsPage = () => {
     enterToSend: true,
     emojiSuggestions: true
   });
-  const [securitySettings, setSecuritySettings] = useState({
-    twoFactorEnabled: false
-  });
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -117,8 +114,6 @@ const SettingsPage = () => {
       case "security":
         return (
           <SecuritySettings 
-            settings={securitySettings} 
-            onChange={setSecuritySettings} 
             authUser={authUser}
           />
         );
@@ -518,6 +513,12 @@ const SecuritySettings = ({ settings, onChange, authUser }) => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [twoFASecret, setTwoFASecret] = useState("");
+  const [twoFAToken, setTwoFAToken] = useState("");
+  const [twoFAEnabled, setTwoFAEnabled] = useState(authUser?.twoFactorEnabled || false);
+  const [isSettingUp2FA, setIsSettingUp2FA] = useState(false);
 
   const handlePasswordChange = async () => {
     if (newPassword !== confirmPassword) {
@@ -536,6 +537,54 @@ const SecuritySettings = ({ settings, onChange, authUser }) => {
       setConfirmPassword("");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to change password");
+    }
+  };
+
+  const handleSetup2FA = async () => {
+    setIsSettingUp2FA(true);
+    try {
+      const res = await axiosInstance.post("/auth/2fa/setup");
+      setQrCode(res.data.qrCode);
+      setTwoFASecret(res.data.secret);
+      setShow2FASetup(true);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to setup 2FA");
+    } finally {
+      setIsSettingUp2FA(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    try {
+      await axiosInstance.post("/auth/2fa/verify", { token: twoFAToken });
+      setTwoFAEnabled(true);
+      setShow2FASetup(false);
+      setQrCode("");
+      setTwoFASecret("");
+      setTwoFAToken("");
+      toast.success("2FA enabled successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Invalid 2FA token");
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    const token = prompt("Enter your 2FA code to disable two-factor authentication:");
+    if (!token) return;
+    try {
+      await axiosInstance.post("/auth/2fa/disable", { token });
+      setTwoFAEnabled(false);
+      toast.success("2FA disabled successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to disable 2FA");
+    }
+  };
+
+  const handle2FAToggle = () => {
+    if (twoFAEnabled) {
+      handleDisable2FA();
+    } else {
+      handleSetup2FA();
     }
   };
 
@@ -558,10 +607,45 @@ const SecuritySettings = ({ settings, onChange, authUser }) => {
           <input 
             type="checkbox" 
             className="toggle toggle-primary"
-            checked={settings.twoFactorEnabled}
-            onChange={(e) => onChange({ ...settings, twoFactorEnabled: e.target.checked })}
+            checked={twoFAEnabled}
+            onChange={handle2FAToggle}
           />
         </div>
+
+        {show2FASetup && (
+          <div className="p-4 bg-base-100 rounded-lg space-y-4">
+            <p className="font-medium">Setup Two-Factor Authentication</p>
+            <p className="text-sm text-base-content/60">
+              Scan this QR code with your authenticator app, then enter the 6-digit code below.
+            </p>
+            {qrCode && (
+              <div className="flex justify-center">
+                <img src={qrCode} alt="2FA QR Code" className="w-48 h-48" />
+              </div>
+            )}
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text">Manual entry key: <code className="text-xs bg-base-200 p-1 rounded">{twoFASecret}</code></span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full text-center tracking-[0.5em] text-lg"
+                placeholder="000000"
+                maxLength={6}
+                value={twoFAToken}
+                onChange={(e) => setTwoFAToken(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button className="btn btn-primary btn-sm" onClick={handleVerify2FA} disabled={twoFAToken.length !== 6}>
+                Verify & Enable
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setShow2FASetup(false); setQrCode(""); setTwoFAToken(""); }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="p-4 bg-base-100 rounded-lg">
           <div className="flex items-center justify-between mb-4">

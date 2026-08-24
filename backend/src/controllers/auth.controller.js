@@ -1,9 +1,10 @@
-import { generateToken } from "../lib/utils.js";
+import { generateToken, generateTempToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
+import jwt from "jsonwebtoken";
 
 export const signup = async (req, res) => {
   const { fullName, email, password } = req.body;
@@ -76,6 +77,20 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    if (user.twoFactorEnabled) {
+      const tempToken = generateTempToken(user._id);
+      return res.status(200).json({
+        requires2FA: true,
+        tempToken,
+        user: {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          profilePic: user.profilePic,
+        },
+      });
+    }
+
     generateToken(user._id, res);
 
     res.status(200).json({
@@ -86,6 +101,54 @@ export const login = async (req, res) => {
     });
   } catch (error) {
     console.log("Error in login controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const verify2FALogin = async (req, res) => {
+  const { tempToken, token } = req.body;
+  try {
+    if (!tempToken || !token) {
+      return res.status(400).json({ message: "Temp token and 2FA token are required" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(400).json({ message: "Invalid or expired temp token" });
+    }
+
+    if (decoded.purpose !== "2fa") {
+      return res.status(400).json({ message: "Invalid token purpose" });
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user || !user.twoFactorEnabled || !user.twoFactorSecret) {
+      return res.status(400).json({ message: "2FA is not enabled for this account" });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: "base32",
+      token: token,
+      window: 1,
+    });
+
+    if (!verified) {
+      return res.status(400).json({ message: "Invalid 2FA token" });
+    }
+
+    generateToken(user._id, res);
+
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+    });
+  } catch (error) {
+    console.log("Error in verify2FALogin controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
