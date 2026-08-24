@@ -66,6 +66,20 @@ export const messageIdValidation = [
   validate
 ];
 
+export const memberIdValidation = [
+  param("memberId")
+    .isMongoId()
+    .withMessage("Invalid member ID"),
+  validate
+];
+
+export const requestIdValidation = [
+  param("requestId")
+    .isMongoId()
+    .withMessage("Invalid request ID"),
+  validate
+];
+
 export const searchValidation = [
   query("query")
     .trim()
