@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import toast from "react-hot-toast";
 import { useAuthStore } from "./useAuthStore";
 
 export const useCallStore = create((set, get) => ({
