@@ -56,6 +56,35 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null
     },
+    notificationSettings: {
+      pushNotifications: {
+        type: Boolean,
+        default: true
+      },
+      messageSound: {
+        type: Boolean,
+        default: true
+      },
+      groupNotifications: {
+        type: Boolean,
+        default: true
+      },
+      typingIndicator: {
+        type: Boolean,
+        default: true
+      }
+    },
+    chatSettings: {
+      fontSize: {
+        type: String,
+        enum: ['small', 'medium', 'large'],
+        default: 'medium'
+      },
+      enterToSend: {
+        type: Boolean,
+        default: true
+      }
+    },
     lastSeen: {
       type: Date,
       default: Date.now

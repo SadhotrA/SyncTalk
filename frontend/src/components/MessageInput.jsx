@@ -158,16 +158,16 @@ const MessageInput = ({ conversation, replyingTo, setReplyingTo }) => {
   useEffect(() => {
     if (socket && conversation?._id) {
       const handleTyping = () => {
-        const userId = useAuthStore.getState().authUser?._id;
-        if (userId) {
-          socket.emit("typing", { conversationId: conversation._id, userId });
+        const authUser = useAuthStore.getState().authUser;
+        if (authUser?._id && authUser?.privacySettings?.typingIndicators) {
+          socket.emit("typing", { conversationId: conversation._id, userId: authUser._id });
         }
       };
 
       const handleStopTyping = () => {
-        const userId = useAuthStore.getState().authUser?._id;
-        if (userId) {
-          socket.emit("stopTyping", { conversationId: conversation._id, userId });
+        const authUser = useAuthStore.getState().authUser;
+        if (authUser?._id) {
+          socket.emit("stopTyping", { conversationId: conversation._id, userId: authUser._id });
         }
       };
 

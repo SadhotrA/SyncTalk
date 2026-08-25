@@ -176,6 +176,23 @@ export const useConversationStore = create((set, get) => ({
         set({ messages: [...messages, message] });
       }
       get().fetchConversations();
+
+      const authUser = useAuthStore.getState().authUser;
+      const isOwnMessage = message.senderId === authUser?._id;
+      if (!isOwnMessage && authUser?.notificationSettings?.messageSound) {
+        try {
+          const ctx = new AudioContext();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 800;
+          gain.gain.value = 0.1;
+          osc.start();
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+          osc.stop(ctx.currentTime + 0.2);
+        } catch (e) {}
+      }
     });
 
     socket.on("messageReaction", ({ messageId, reactions }) => {

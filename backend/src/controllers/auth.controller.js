@@ -219,6 +219,52 @@ export const updatePrivacySettings = async (req, res) => {
   }
 };
 
+export const updateNotificationSettings = async (req, res) => {
+  try {
+    const { pushNotifications, messageSound, groupNotifications, typingIndicator } = req.body;
+    const userId = req.user._id;
+
+    const updates = {};
+    if (typeof pushNotifications === 'boolean') updates['notificationSettings.pushNotifications'] = pushNotifications;
+    if (typeof messageSound === 'boolean') updates['notificationSettings.messageSound'] = messageSound;
+    if (typeof groupNotifications === 'boolean') updates['notificationSettings.groupNotifications'] = groupNotifications;
+    if (typeof typingIndicator === 'boolean') updates['notificationSettings.typingIndicator'] = typingIndicator;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.log("Error in updateNotificationSettings controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const updateChatSettings = async (req, res) => {
+  try {
+    const { fontSize, enterToSend } = req.body;
+    const userId = req.user._id;
+
+    const updates = {};
+    if (fontSize) updates['chatSettings.fontSize'] = fontSize;
+    if (typeof enterToSend === 'boolean') updates['chatSettings.enterToSend'] = enterToSend;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true }
+    ).select("-password");
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.log("Error in updateChatSettings controller", error.message);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
 export const setup2FA = async (req, res) => {
   try {
     const userId = req.user._id;

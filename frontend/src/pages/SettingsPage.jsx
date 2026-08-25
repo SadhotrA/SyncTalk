@@ -37,9 +37,7 @@ const SettingsPage = () => {
   });
   const [chatSettings, setChatSettings] = useState({
     fontSize: 'medium',
-    chatWallpaper: 'default',
-    enterToSend: true,
-    emojiSuggestions: true
+    enterToSend: true
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -48,6 +46,12 @@ const SettingsPage = () => {
     if (authUser?.privacySettings) {
       setPrivacySettings(authUser.privacySettings);
     }
+    if (authUser?.notificationSettings) {
+      setNotificationSettings(authUser.notificationSettings);
+    }
+    if (authUser?.chatSettings) {
+      setChatSettings(authUser.chatSettings);
+    }
   }, [authUser]);
 
   const handlePrivacyChange = async (key, value) => {
@@ -55,7 +59,8 @@ const SettingsPage = () => {
     setPrivacySettings(newSettings);
     setIsSaving(true);
     try {
-      await axiosInstance.put("/auth/privacy-settings", newSettings);
+      const res = await axiosInstance.put("/auth/privacy-settings", newSettings);
+      setAuthUser(res.data);
       toast.success("Privacy settings updated");
     } catch (error) {
       toast.error("Failed to update settings");
@@ -65,14 +70,36 @@ const SettingsPage = () => {
     }
   };
 
-  const handleNotificationChange = (key, value) => {
-    setNotificationSettings(prev => ({ ...prev, [key]: value }));
-    toast.success("Notification settings updated");
+  const handleNotificationChange = async (key, value) => {
+    const newSettings = { ...notificationSettings, [key]: value };
+    setNotificationSettings(newSettings);
+    setIsSaving(true);
+    try {
+      const res = await axiosInstance.put("/auth/notification-settings", newSettings);
+      setAuthUser(res.data);
+      toast.success("Notification settings updated");
+    } catch (error) {
+      toast.error("Failed to update settings");
+      setNotificationSettings(notificationSettings);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleChatChange = (key, value) => {
-    setChatSettings(prev => ({ ...prev, [key]: value }));
-    toast.success("Chat settings updated");
+  const handleChatChange = async (key, value) => {
+    const newSettings = { ...chatSettings, [key]: value };
+    setChatSettings(newSettings);
+    setIsSaving(true);
+    try {
+      const res = await axiosInstance.put("/auth/chat-settings", newSettings);
+      setAuthUser(res.data);
+      toast.success("Chat settings updated");
+    } catch (error) {
+      toast.error("Failed to update settings");
+      setChatSettings(chatSettings);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const tabs = [
@@ -372,38 +399,6 @@ const ChatSettings = ({ settings, onChange }) => {
             checked={settings.enterToSend}
             onChange={(e) => onChange("enterToSend", e.target.checked)}
           />
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-base-100 rounded-lg">
-          <div>
-            <p className="font-medium">Emoji Suggestions</p>
-            <p className="text-sm text-base-content/60">Show emoji suggestions while typing</p>
-          </div>
-          <input 
-            type="checkbox" 
-            className="toggle toggle-primary"
-            checked={settings.emojiSuggestions}
-            onChange={(e) => onChange("emojiSuggestions", e.target.checked)}
-          />
-        </div>
-
-        <div className="p-4 bg-base-100 rounded-lg">
-          <p className="font-medium mb-2">Chat Wallpaper</p>
-          <div className="flex gap-3">
-            {['default', 'light', 'dark', 'custom'].map((wallpaper) => (
-              <button
-                key={wallpaper}
-                className={`w-16 h-16 rounded-lg border-2 ${
-                  settings.chatWallpaper === wallpaper 
-                    ? "border-primary" 
-                    : "border-base-300"
-                } ${wallpaper === 'default' ? 'bg-gradient-to-br from-blue-400 to-purple-500' : 
-                   wallpaper === 'light' ? 'bg-white' : 
-                   wallpaper === 'dark' ? 'bg-gray-800' : 'bg-base-300'}`}
-                onClick={() => onChange("chatWallpaper", wallpaper)}
-              />
-            ))}
-          </div>
         </div>
       </div>
     </div>
