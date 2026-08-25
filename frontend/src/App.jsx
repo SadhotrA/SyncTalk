@@ -22,13 +22,9 @@ const App = () => {
   const { getEffectiveTheme } = useThemeStore();
   const effectiveTheme = getEffectiveTheme();
 
-  console.log({ onlineUsers });
-
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
-
-  console.log({ authUser });
 
   if (isCheckingAuth && !authUser)
     return (
