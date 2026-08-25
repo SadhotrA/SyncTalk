@@ -158,17 +158,17 @@ const MessageInput = ({ conversation, replyingTo, setReplyingTo }) => {
   useEffect(() => {
     if (socket && conversation?._id) {
       const handleTyping = () => {
-        socket.emit("typing", { 
-          conversationId: conversation._id, 
-          userId: useAuthStore.getState().authUser._id 
-        });
+        const userId = useAuthStore.getState().authUser?._id;
+        if (userId) {
+          socket.emit("typing", { conversationId: conversation._id, userId });
+        }
       };
 
       const handleStopTyping = () => {
-        socket.emit("stopTyping", { 
-          conversationId: conversation._id, 
-          userId: useAuthStore.getState().authUser._id 
-        });
+        const userId = useAuthStore.getState().authUser?._id;
+        if (userId) {
+          socket.emit("stopTyping", { conversationId: conversation._id, userId });
+        }
       };
 
       const timeout = setTimeout(handleTyping, 300);
