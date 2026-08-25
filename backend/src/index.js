@@ -40,11 +40,18 @@ app.use(cookieParser());
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 500, // Limit each IP to 500 requests per windowMs
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-  trustProxy: true
+  trustProxy: true,
+  skip: (req) => {
+    // Skip rate limiting for auth routes to avoid blocking login/logout
+    return req.path.startsWith('/auth/login') || 
+           req.path.startsWith('/auth/signup') || 
+           req.path.startsWith('/auth/logout') ||
+           req.path.startsWith('/auth/check');
+  }
 });
 
 // Apply rate limiting to API routes
