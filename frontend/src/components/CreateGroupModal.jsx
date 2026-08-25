@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useFriendStore } from "../store/useFriendStore";
 import { useGroupStore } from "../store/useGroupStore";
+import { uploadToCloudinary, dataUrlToFile } from "../lib/cloudinary";
 import toast from "react-hot-toast";
 import { Users, X, Plus, Image } from "lucide-react";
 
@@ -38,9 +39,21 @@ const CreateGroupModal = ({ isOpen, onClose, onGroupCreated }) => {
     }
 
     setIsCreating(true);
+    let avatarUrl = avatar;
+    if (avatar && avatar.startsWith("data:")) {
+      try {
+        const file = dataUrlToFile(avatar, `group-avatar-${Date.now()}.png`);
+        avatarUrl = await uploadToCloudinary(file, "group_avatars");
+      } catch (uploadError) {
+        toast.error("Failed to upload avatar: " + uploadError.message);
+        setIsCreating(false);
+        return;
+      }
+    }
+
     const group = await createGroup({
       name: groupName,
-      avatar,
+      avatar: avatarUrl,
       memberIds: selectedMembers,
     });
 

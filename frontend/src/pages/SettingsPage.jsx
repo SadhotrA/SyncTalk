@@ -4,6 +4,7 @@ import { useThemeStore } from "../store/useThemeStore";
 import { useFriendStore } from "../store/useFriendStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { axiosInstance } from "../lib/axios";
+import { uploadToCloudinary, dataUrlToFile } from "../lib/cloudinary";
 import toast from "react-hot-toast";
 import { 
   Send, Shield, Eye, MessageSquare, Ban, User, Bell, MessageCircle, 
@@ -166,10 +167,15 @@ const AccountSettings = ({ authUser, setAuthUser }) => {
 
   const handleSave = async () => {
     try {
+      let profilePicUrl = previewImage;
+      if (previewImage && previewImage.startsWith("data:")) {
+        const file = dataUrlToFile(previewImage, `profile-${Date.now()}.png`);
+        profilePicUrl = await uploadToCloudinary(file, "profile_pics");
+      }
       const res = await axiosInstance.put("/auth/update-profile", {
         fullName,
         email,
-        profilePic: previewImage
+        profilePic: profilePicUrl
       });
       setAuthUser(res.data);
       toast.success("Profile updated successfully");

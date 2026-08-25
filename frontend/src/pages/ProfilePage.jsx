@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
+import { uploadToCloudinary, dataUrlToFile } from "../lib/cloudinary";
+import toast from "react-hot-toast";
 import { Camera, Mail, User } from "lucide-react";
 
 const ProfilePage = () => {
@@ -17,7 +19,13 @@ const ProfilePage = () => {
     reader.onload = async () => {
       const base64Image = reader.result;
       setSelectedImg(base64Image);
-      await updateProfile({ profilePic: base64Image });
+      try {
+        const cloudFile = dataUrlToFile(base64Image, `profile-${Date.now()}.png`);
+        const url = await uploadToCloudinary(cloudFile, "profile_pics");
+        await updateProfile({ profilePic: url });
+      } catch (error) {
+        toast.error("Failed to upload profile picture");
+      }
     };
   };
 

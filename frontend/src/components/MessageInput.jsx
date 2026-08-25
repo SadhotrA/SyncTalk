@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useConversationStore } from "../store/useConversationStore";
 import { useAuthStore } from "../store/useAuthStore";
+import { uploadToCloudinary, dataUrlToFile } from "../lib/cloudinary";
 import { Image, Send, X, Paperclip, Mic, Smile, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -75,13 +76,15 @@ const MessageInput = ({ conversation, replyingTo, setReplyingTo }) => {
       const chunks = [];
 
       mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: "audio/webm" });
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          await sendMessage({ voiceMessage: reader.result });
-        };
-        reader.readAsDataURL(blob);
+        try {
+          const file = new File([blob], `voice-${Date.now()}.webm`, { type: "audio/webm" });
+          const voiceUrl = await uploadToCloudinary(file, "voice_messages");
+          await sendMessage({ voiceMessage: voiceUrl });
+        } catch (uploadError) {
+          toast.error("Failed to upload voice message: " + uploadError.message);
+        }
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -112,10 +115,33 @@ const MessageInput = ({ conversation, replyingTo, setReplyingTo }) => {
     if (!text.trim() && !imagePreview && !filePreview) return;
 
     try {
+      let imageUrl = null;
+      let fileData = null;
+
+      if (imagePreview) {
+        try {
+          const file = dataUrlToFile(imagePreview, `chat-image-${Date.now()}.png`);
+          imageUrl = await uploadToCloudinary(file, "chat_images");
+        } catch (uploadError) {
+          toast.error("Failed to upload image: " + uploadError.message);
+          return;
+        }
+      }
+
+      if (filePreview) {
+        try {
+          const file = dataUrlToFile(filePreview.data, filePreview.name);
+          fileData = await uploadToCloudinary(file, "chat_files");
+        } catch (uploadError) {
+          toast.error("Failed to upload file: " + uploadError.message);
+          return;
+        }
+      }
+
       await sendMessage({
         text: text.trim(),
-        image: imagePreview,
-        file: filePreview?.data,
+        image: imageUrl,
+        file: fileData,
         replyTo: replyingTo?._id || null
       });
 
