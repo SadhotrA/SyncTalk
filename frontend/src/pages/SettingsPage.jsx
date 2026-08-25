@@ -161,8 +161,6 @@ const SettingsPage = () => {
 
 const AccountSettings = ({ authUser, setAuthUser }) => {
   const [fullName, setFullName] = useState(authUser?.fullName || "");
-  const [email, setEmail] = useState(authUser?.email || "");
-  const [isEditing, setIsEditing] = useState(false);
   const [previewImage, setPreviewImage] = useState(authUser?.profilePic || "");
 
   const handleSave = async () => {
@@ -174,12 +172,10 @@ const AccountSettings = ({ authUser, setAuthUser }) => {
       }
       const res = await axiosInstance.put("/auth/update-profile", {
         fullName,
-        email,
         profilePic: profilePicUrl
       });
       setAuthUser(res.data);
       toast.success("Profile updated successfully");
-      setIsEditing(false);
     } catch (error) {
       toast.error("Failed to update profile");
     }
@@ -238,10 +234,13 @@ const AccountSettings = ({ authUser, setAuthUser }) => {
           <label className="label">Email</label>
           <input
             type="email"
-            className="input input-bordered w-full"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            className="input input-bordered w-full bg-base-200 cursor-not-allowed"
+            value={authUser?.email || ""}
+            readOnly
           />
+          <label className="label">
+            <span className="label-text-alt text-base-content/50">Email cannot be changed</span>
+          </label>
         </div>
       </div>
 
@@ -249,6 +248,20 @@ const AccountSettings = ({ authUser, setAuthUser }) => {
         <Save className="size-4" />
         Save Changes
       </button>
+
+      <div className="mt-6 bg-base-100 rounded-xl p-6">
+        <h2 className="text-lg font-medium mb-4">Account Information</h2>
+        <div className="space-y-3 text-sm">
+          <div className="flex items-center justify-between py-2 border-b border-base-300">
+            <span>Member Since</span>
+            <span>{authUser?.createdAt?.split("T")[0]}</span>
+          </div>
+          <div className="flex items-center justify-between py-2">
+            <span>Account Status</span>
+            <span className="text-success">Active</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
